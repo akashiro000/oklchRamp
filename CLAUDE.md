@@ -54,7 +54,7 @@ mayapy でできないこと: VP2 描画、`scriptJob` の発火、idle タス�
 - **VP2 / Arnold はシェーダ内で OKLCH 計算をしない。** CPU で密にサンプリングしてテクスチャ／ramp_rgb のキーにする。VP2 は 256x1 RGBA float、Arnold は 256 キー線形。
 - **AE の自動更新は `oklchRampWatch`。** `scriptJob -attributeChange` は複合配列の子（ramp の各エントリ）で発火しないため。通知は idle で 1 回に合流させる。
 - **place2dTexture との接続は `outUV → uvCoord`、`outUvFilterSize → uvFilterSize` のみ。** カスタム MPxNode に coverage/repeatUV 等は無い（標準テクスチャ専用）。Arnold 側では place2dTexture の値を `uv_transform` に写す。
-- **Maya は新規 ramp アトリビュートにエントリ [0] を自動生成する。** postConstructor はそれを黒 @0 に上書きし、白 @1 を追加する（重複エントリを作らない）。
+- **Maya は新規 ramp アトリビュートにエントリ [0] を自動生成する。** postConstructor はそれを黒 @0 に上書きし、白 @1 を追加する（重複エントリを作らない）。ただし `MFileIO::isReadingFile()` 中は何もしない。ファイル読込時に既定値を入れると、保存された ramp がインデックス 0 を使っていない場合に黒のエントリが残るため（`tests/headless/test_reload_entries.py`）。
 - **ノード ID**: Autodesk 登録ブロック `0x00142C40`〜`0x00142C7F`。`0x00142C40` = oklchRamp。新ノードは `0x00142C41` から順に使う。
 - **AE プレビュー帯**: 40 セル × 6px = 240px（AE の横スクロールを出さない幅）。`$gAEoklchRampPreviewSamples` で分解能と幅が連動。
 

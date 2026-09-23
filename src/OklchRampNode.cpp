@@ -12,6 +12,7 @@
 #include <maya/MColorArray.h>
 #include <maya/MPlug.h>
 #include <maya/MGlobal.h>
+#include <maya/MFileIO.h>
 #include <cmath>
 #include <algorithm>
 
@@ -158,6 +159,11 @@ MStatus OklchRampNode::initialize()
 
 void OklchRampNode::postConstructor()
 {
+    // When the node comes from a file, the file supplies the entries. Adding
+    // defaults here would leave a stray black entry [0] whenever the saved ramp
+    // does not use index 0 (the user deleted or re-created entries).
+    if (MFileIO::isReadingFile()) return;
+
     // Default ramp: black -> white, like Maya's ramp texture.
     MStatus st;
     MRampAttribute ramp(thisMObject(), aColorEntryList, &st);
