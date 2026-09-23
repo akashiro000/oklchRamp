@@ -16,7 +16,7 @@
   Where logs / images go. Default: tests/out (gitignored).
 #>
 param(
-    [Parameter(Mandatory)][ValidateSet("vp2", "watch", "arnold")][string]$Test,
+    [Parameter(Mandatory)][ValidateSet("vp2", "watch", "arnold", "preview_probe")][string]$Test,
     [string]$MayaLocation = $(if ($env:MAYA_LOCATION) { $env:MAYA_LOCATION } else { "C:\Program Files\Autodesk\Maya2025" }),
     [string]$MtoaLocation = $(if ($env:MTOA_LOCATION) { $env:MTOA_LOCATION } else { "C:\Program Files\Autodesk\Arnold\Maya2025" }),
     [string]$OutDir = "",
@@ -27,7 +27,8 @@ $repo = Split-Path -Parent $PSScriptRoot
 if (-not $OutDir) { $OutDir = Join-Path $PSScriptRoot "out" }
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 
-$py  = (Join-Path $PSScriptRoot "gui\$($Test)_test.py") -replace '\\', '/'
+$pyName = if ($Test -eq "preview_probe") { "preview_probe.py" } else { "$($Test)_test.py" }
+$py  = (Join-Path $PSScriptRoot "gui\$pyName") -replace '\\', '/'
 $mel = Join-Path $OutDir "$($Test)_test.mel"
 @"
 global proc oklchGuiTestRun() {

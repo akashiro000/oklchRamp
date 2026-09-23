@@ -28,9 +28,11 @@ global proc AEoklchRamp_previewUpdate(string $node, string $grid)
     // Convert to display space exactly like Maya's own swatches / gradient
     // editor do (view transform, e.g. ACES), so both previews match. A plain
     // sRGB curve would look more saturated / contrasty than the ramp control.
+    // This is applied regardless of inputColorSpace: Maya always shows the
+    // stored entry values through the view transform, so the preview must too
+    // (the canvas control itself is not colour-managed).
     float $rgb[] = `oklchRampSample -node $node -count $n`;
-    int $toDisplay = `colorManagementPrefs -q -cmEnabled`
-                     && `getAttr ($node + ".inputColorSpace")` == 0;   // entries are scene-linear
+    int $toDisplay = `colorManagementPrefs -q -cmEnabled`;
 
     string $kids[] = `gridLayout -q -childArray $grid`;
     int $count = min(size($kids), $n);
