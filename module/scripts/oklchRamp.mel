@@ -1,0 +1,41 @@
+// oklchRamp.mel - helper procs for the oklchRamp texture node.
+//
+//   string $ramp = oklchRampCreate();   // creates oklchRamp + place2dTexture, returns the ramp node
+
+global proc string oklchRampCreate()
+{
+    if (!`pluginInfo -q -loaded oklchRamp`)
+        loadPlugin oklchRamp;
+
+    string $ramp  = `shadingNode -asTexture oklchRamp`;
+    string $place = `shadingNode -asUtility place2dTexture`;
+
+    // A custom MPxNode only carries uvCoord / uvFilterSize; coverage, repeatUV etc.
+    // live on place2dTexture itself and are folded into outUV.
+    connectAttr -f ($place + ".outUV")           ($ramp + ".uvCoord");
+    connectAttr -f ($place + ".outUvFilterSize") ($ramp + ".uvFilterSize");
+
+    return $ramp;
+}
+
+// Convenience: set the ramp to a list of colours evenly spaced in [0,1].
+//   oklchRampSetColors("oklchRamp1", {1,0,0, 0,0,1});   // red -> blue
+global proc oklchRampSetColors(string $node, float $rgbList[])
+{
+    int $n = size($rgbList) / 3;
+    if ($n < 1) return;
+
+    // clear existing entries
+    string $plugs[] = `listAttr -multi ($node + ".colorEntryList")`;
+    for ($p in $plugs)
+        if (`match "^colorEntryList\\[[0-9]+\\]$" $p` != "")
+            removeMultiInstance -break true ($node + "." + $p);
+
+    for ($i = 0; $i < $n; $i++) {
+        float $pos = ($n == 1) ? 0.0 : (float)$i / (float)($n - 1);
+        string $e = $node + ".colorEntryList[" + $i + "]";
+        setAttr ($e + ".colorEntryList_Position") $pos;
+        setAttr ($e + ".colorEntryList_Color") -type double3 $rgbList[$i*3] $rgbList[$i*3+1] $rgbList[$i*3+2];
+        setAttr ($e + ".colorEntryList_Interp") 1;
+    }
+}

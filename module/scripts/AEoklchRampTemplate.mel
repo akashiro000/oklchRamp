@@ -1,0 +1,186 @@
+// AEoklchRampTemplate.mel
+// Attribute Editor template for the oklchRamp node (OKLCH-interpolating ramp texture).
+//
+// Layout:
+//   - node swatch
+//   - Ramp: type / input mode / input value / standard gradient editor
+//   - OKLCH Preview strip (rendered by the plug-in's real interpolation, via oklchRampSample)
+//   - Interpolation: space / hue mode / gamut mapping / input colour space
+//   - Extra attributes
+
+// ---------------------------------------------------------------------------
+// Preview strip
+// ---------------------------------------------------------------------------
+// 40 cells x 6 px = 240 px, which fits the default Attribute Editor width
+// next to the 145 px label column without a horizontal scrollbar.
+global int $gAEoklchRampPreviewSamples = 40;
+
+// Recolour the canvases in $grid from the node's actual OKLCH interpolation.
+global proc AEoklchRamp_previewUpdate(string $node, string $grid)
+{
+    if (!`gridLayout -q -exists $grid`) return;
+    if (!`objExists $node`) return;
+    if (!`pluginInfo -q -loaded oklchRamp`) return;
+
+    global int $gAEoklchRampPreviewSamples;
+    int $n = $gAEoklchRampPreviewSamples;
+
+    // Show display-referred colours when colour management is on.
+    float $rgb[];
+    if (`colorManagementPrefs -q -cmEnabled`)
+        $rgb = `oklchRampSample -node $node -count $n -srgb`;
+    else
+        $rgb = `oklchRampSample -node $node -count $n`;
+
+    string $kids[] = `gridLayout -q -childArray $grid`;
+    int $count = min(size($kids), $n);
+    for ($i = 0; $i < $count; $i++) {
+        float $r = clamp(0.0, 1.0, $rgb[$i * 3 + 0]);
+        float $g = clamp(0.0, 1.0, $rgb[$i * 3 + 1]);
+        float $b = clamp(0.0, 1.0, $rgb[$i * 3 + 2]);
+        canvas -e -rgbValue $r $g $b ($grid + "|" + $kids[$i]);
+    }
+}
+
+// Insert a new ramp entry at cell $index of $count, using the colour the node
+// actually produces there, so the colour at the clicked position is unchanged
+// (with Smooth/Spline the curve between neighbours may re-shape slightly).
+// One undo step removes the entry again.
+global proc AEoklchRamp_previewAddEntry(string $node, int $index, int $count)
+{
+    if (!`objExists $node`) return;
+    if (!`pluginInfo -q -loaded oklchRamp`) return;
+
+    float $pos = ($count <= 1) ? 0.0 : (float)$index / (float)($count - 1);
+    float $rgb[] = `oklchRampSample -node $node -position $pos`;   // stored (node) colour space
+
+    // next free multi index
+    int $indices[] = `getAttr -multiIndices ($node + ".colorEntryList")`;
+    int $new = 0;
+    for ($i in $indices) if ($i >= $new) $new = $i + 1;
+
+    // inherit the interpolation of the entry just before this position
+    int $interp = 1;
+    float $bestPos = -1.0;
+    for ($i in $indices) {
+        float $p = `getAttr ($node + ".colorEntryList[" + $i + "].colorEntryList_Position")`;
+        if ($p <= $pos && $p > $bestPos) {
+            $bestPos = $p;
+            $interp = `getAttr ($node + ".colorEntryList[" + $i + "].colorEntryList_Interp")`;
+        }
+    }
+
+    string $e = $node + ".colorEntryList[" + $new + "]";
+    undoInfo -openChunk -chunkName "oklchRamp add entry";
+    setAttr ($e + ".colorEntryList_Position") $pos;
+    setAttr ($e + ".colorEntryList_Color") -type double3 $rgb[0] $rgb[1] $rgb[2];
+    setAttr ($e + ".colorEntryList_Interp") $interp;
+    undoInfo -closeChunk;
+}
+
+// (Re)build the preview widgets inside $col for $node. Rebuilding the grid
+// also drops the scriptJobs that were parented to the previous grid.
+global proc AEoklchRamp_previewBuild(string $node, string $col)
+{
+    global int $gAEoklchRampPreviewSamples;
+    int $n = $gAEoklchRampPreviewSamples;
+    int $cellW = 6;
+
+    string $old[] = `columnLayout -q -childArray $col`;
+    for ($c in $old) deleteUI ($col + "|" + $c);
+
+    setParent $col;
+    string $row = `rowLayout -numberOfColumns 3
+                              -columnWidth3 145 ($n * $cellW + 4) 26
+                              -columnAttach 1 "right" 4
+                              -columnAttach 2 "left"  0
+                              -columnAttach 3 "left"  2`;
+        text -label "OKLCH Preview" -annotation "Actual interpolation result of this node (the gradient editor above shows Maya's RGB preview). Click the strip to add a colour entry at that position.";
+        string $grid = `gridLayout -numberOfColumns $n -cellWidthHeight $cellW 22 -allowEmptyCells false`;
+            for ($i = 0; $i < $n; $i++)
+                canvas -width $cellW -height 22 -rgbValue 0 0 0
+                       -annotation "Click: add a colour entry here"
+                       -pressCommand ("AEoklchRamp_previewAddEntry \"" + $node + "\" " + $i + " " + $n);
+        setParent ..;
+        symbolButton -image "refresh.png" -width 22 -height 22
+                     -annotation "Refresh preview"
+                     -command ("AEoklchRamp_previewUpdate \"" + $node + "\" \"" + $grid + "\"");
+    setParent ..;
+
+    // Live refresh when the ramp or any interpolation setting changes.
+    // (scriptJob -attributeChange does not fire for children of the
+    //  colorEntryList compound array, so the plug-in provides oklchRampWatch:
+    //  an MNodeMessage callback that runs the command once per idle.)
+    string $cmd = "AEoklchRamp_previewUpdate \"" + $node + "\" \"" + $grid + "\"";
+    int $watch = `oklchRampWatch -node $node -command $cmd`;
+    scriptJob -runOnce true -uiDeleted $grid ("oklchRampWatch -remove " + $watch);
+
+    AEoklchRamp_previewUpdate $node $grid;
+}
+
+global proc AEoklchRamp_previewNew(string $attr)
+{
+    string $node = `match "^[^.]*" $attr`;
+    setUITemplate -pst attributeEditorTemplate;
+    string $col = `columnLayout -adjustableColumn true oklchRampPreviewCol`;
+    setUITemplate -ppt;
+    setParent ..;
+    AEoklchRamp_previewBuild $node $col;
+}
+
+global proc AEoklchRamp_previewReplace(string $attr)
+{
+    string $node = `match "^[^.]*" $attr`;
+    string $parent = `setParent -q`;
+    string $col = $parent + "|oklchRampPreviewCol";
+    if (!`columnLayout -q -exists $col`) return;
+    AEoklchRamp_previewBuild $node $col;
+}
+
+// ---------------------------------------------------------------------------
+// Dimming callbacks
+// ---------------------------------------------------------------------------
+global proc AEoklchRamp_inputModeChanged(string $node)
+{
+    int $mode = `getAttr ($node + ".inputMode")`;
+    editorTemplate -dimControl $node "inputValue" ($mode == 0);
+    editorTemplate -dimControl $node "rampType"   ($mode == 1);
+}
+
+global proc AEoklchRamp_spaceChanged(string $node)
+{
+    int $space = `getAttr ($node + ".interpolationSpace")`;
+    editorTemplate -dimControl $node "hueInterpolation" ($space != 0);
+}
+
+// ---------------------------------------------------------------------------
+// Template
+// ---------------------------------------------------------------------------
+global proc AEoklchRampTemplate(string $nodeName)
+{
+    AEswatchDisplay $nodeName;
+    editorTemplate -beginScrollLayout;
+
+    editorTemplate -beginLayout "OKLCH Ramp Attributes" -collapse 0;
+        editorTemplate -addControl "inputMode" "AEoklchRamp_inputModeChanged";
+        editorTemplate -addControl "rampType";
+        editorTemplate -addControl "inputValue";
+        editorTemplate -addSeparator;
+        AEaddRampControl ($nodeName + ".colorEntryList");
+        editorTemplate -callCustom "AEoklchRamp_previewNew" "AEoklchRamp_previewReplace" "colorEntryList";
+    editorTemplate -endLayout;
+
+    editorTemplate -beginLayout "Interpolation" -collapse 0;
+        editorTemplate -addControl "interpolationSpace" "AEoklchRamp_spaceChanged";
+        editorTemplate -addControl "hueInterpolation";
+        editorTemplate -addControl "gamutMapping";
+        editorTemplate -addControl "inputColorSpace";
+    editorTemplate -endLayout;
+
+    // hidden / driven by place2dTexture
+    editorTemplate -suppress "uvCoord";
+    editorTemplate -suppress "uvFilterSize";
+
+    editorTemplate -addExtraControls;
+    editorTemplate -endScrollLayout;
+}

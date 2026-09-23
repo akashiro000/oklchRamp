@@ -1,0 +1,17 @@
+# build output
+build/
+*.old
+
+# binaries (built by build.ps1 / cmake)
+module/plug-ins/*.mll
+module/plug-ins/*.so
+module/plug-ins/*.bundle
+module/arnold/*.dll
+module/arnold/*.so
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+Thumbs.db
+.DS_Store
