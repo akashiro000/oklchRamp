@@ -25,19 +25,22 @@ global proc AEoklchRamp_previewUpdate(string $node, string $grid)
     global int $gAEoklchRampPreviewSamples;
     int $n = $gAEoklchRampPreviewSamples;
 
-    // Show display-referred colours when colour management is on.
-    float $rgb[];
-    if (`colorManagementPrefs -q -cmEnabled`)
-        $rgb = `oklchRampSample -node $node -count $n -srgb`;
-    else
-        $rgb = `oklchRampSample -node $node -count $n`;
+    // Convert to display space exactly like Maya's own swatches / gradient
+    // editor do (view transform, e.g. ACES), so both previews match. A plain
+    // sRGB curve would look more saturated / contrasty than the ramp control.
+    float $rgb[] = `oklchRampSample -node $node -count $n`;
+    int $toDisplay = `colorManagementPrefs -q -cmEnabled`
+                     && `getAttr ($node + ".inputColorSpace")` == 0;   // entries are scene-linear
 
     string $kids[] = `gridLayout -q -childArray $grid`;
     int $count = min(size($kids), $n);
     for ($i = 0; $i < $count; $i++) {
-        float $r = clamp(0.0, 1.0, $rgb[$i * 3 + 0]);
-        float $g = clamp(0.0, 1.0, $rgb[$i * 3 + 1]);
-        float $b = clamp(0.0, 1.0, $rgb[$i * 3 + 2]);
+        float $c[] = { $rgb[$i * 3 + 0], $rgb[$i * 3 + 1], $rgb[$i * 3 + 2] };
+        if ($toDisplay)
+            $c = `colorManagementConvert -toDisplaySpace $c[0] $c[1] $c[2]`;
+        float $r = clamp(0.0, 1.0, $c[0]);
+        float $g = clamp(0.0, 1.0, $c[1]);
+        float $b = clamp(0.0, 1.0, $c[2]);
         canvas -e -rgbValue $r $g $b ($grid + "|" + $kids[$i]);
     }
 }

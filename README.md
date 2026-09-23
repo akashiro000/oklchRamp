@@ -73,8 +73,8 @@ float $c[] = `oklchRampSample -node oklchRamp1 -count 64 -srgb`;
 float $c[] = `oklchRampSample -node oklchRamp1 -position 0.5`;
 ```
 
-アトリビュートエディタの「OKLCH Preview」帯はこのコマンドで描画しています
-（上のグラデーションエディタは Maya 内蔵の RGB プレビューなので見た目が異なります）。
+アトリビュートエディタの「OKLCH Preview」帯はこのコマンドで描画し、Maya の表示変換（`colorManagementConvert`）を通しているので
+標準スウォッチと同じ見え方になります（上のグラデーションエディタは Maya 内蔵の RGB 補間プレビューなので、補間の中間色は異なります）。
 プレビュー帯をクリックすると、その位置にその色のエントリが追加されます（Ctrl+Z で取り消し可能）。
 補間タイプは直前のエントリのものを引き継ぎます。
 Ramp や補間設定を編集すると自動で再描画されます（グラデーションエディタでのドラッグ中も追従）。

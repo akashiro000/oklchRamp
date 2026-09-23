@@ -43,6 +43,23 @@ try:
         for k in range(20):   # simulate a drag: 20 sets -> expect exactly +1
             cmds.setAttr(ramp + ".colorEntryList[1].colorEntryList_Position", 0.5 + k * 0.01)
 
+    def check_preview():
+        # The preview strip must show the same display-transformed colour as
+        # Maya's own swatches (colorManagementConvert), not a plain sRGB curve.
+        grids = [g for g in (cmds.lsUI(type="gridLayout") or []) if "oklchRampPreviewCol" in (cmds.gridLayout(g, q=True, fullPathName=True) or "")]
+        L("preview grids found:", len(grids))
+        if not grids:
+            return
+        g = cmds.gridLayout(grids[0], q=True, fullPathName=True)
+        kids = cmds.gridLayout(g, q=True, childArray=True)
+        n = len(kids)
+        mid = n // 2
+        shown = cmds.canvas(g + "|" + kids[mid], q=True, rgbValue=True)
+        raw = cmds.oklchRampSample(node=ramp, position=float(mid) / (n - 1))
+        expect = cmds.colorManagementConvert(toDisplaySpace=raw) if cmds.colorManagementPrefs(q=True, cmEnabled=True) else raw
+        ok = all(abs(a - b) < 0.02 for a, b in zip(shown, expect))
+        L("preview cell", mid, "shown", [round(v, 3) for v in shown], "expected", [round(v, 3) for v in expect], "match:", ok)
+
     steps[:] = [
         ("set color[0]",      lambda: cmds.setAttr(ramp + ".colorEntryList[0].colorEntryList_Color", 1, 0, 0, type="double3")),
         ("set colorR[1]",     lambda: cmds.setAttr(ramp + ".colorEntryList[1].colorEntryList_ColorR", 0.3)),
@@ -57,6 +74,7 @@ try:
                                        cmds.setAttr(ramp + ".colorEntryList[0].colorEntryList_ColorG", 0.5))),
         # AE: open the template for real and make sure it builds without error
         ("open AE",           lambda: (cmds.select(ramp), mel.eval("openAEWindow"), mel.eval("AEbuildControls"))),
+        ("preview colours",   check_preview),
     ]
     cmds.evalDeferred(run_step, lowestPriority=True)
 except Exception:
