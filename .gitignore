@@ -15,3 +15,7 @@ module/arnold/*.so
 *.user
 Thumbs.db
 .DS_Store
+
+# test output / machine-local notes
+tests/out/
+CLAUDE.local.md
