@@ -58,7 +58,7 @@ Hypershade の Create タブ（2D Textures）にも `oklchRamp` が現れます�
 | `interpolationSpace` | OKLCH（色相を角度で補間）／ OKLab（直線補間） |
 | `hueInterpolation` | Shorter / Longer / Increasing / Decreasing（CSS `color-mix` と同じ意味） |
 | `gamutMapping` | None / Clip / Reduce Chroma（既定。明度と色相を保ったまま彩度を落として色域内へ） |
-| `inputColorSpace` | Linear（既定。Maya のレンダリング空間）／ sRGB（表示値をそのまま入れる用途向け） |
+| `inputColorSpace` | Linear（既定。Maya のレンダリング空間）／ sRGB（エントリ値を sRGB 表示値として補間・出力する。Maya 自身のスウォッチやレンダリングは設定に関係なく格納値をシーンリニアとして扱うので、通常は Linear のままにする） |
 | `outColor` / `outAlpha` | 出力色 / OKLab 明度 L |
 
 各エントリの Interp（None / Linear / Smooth / Spline）も OKLCH 空間上で適用されます。

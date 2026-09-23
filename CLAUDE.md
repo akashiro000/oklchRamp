@@ -42,6 +42,7 @@ build.ps1                 configure + build（+ -Install で modules に .mod �
 | `tests\run_gui_test.ps1 -Test vp2` | VP2 override を ogsRender で描画 | `tests\out\vp2_test.png` を目視（Read ツールで画像を見る） |
 | `tests\run_gui_test.ps1 -Test watch` | oklchRampWatch の発火・合流・解除 | log の hits が期待どおり（子アトリビュート変更で +1、無関係属性で +0、連続 20 回で +1） |
 | `tests\run_gui_test.ps1 -Test arnold` | MtoA で .ass 書き出し → kick（透かし付き）で描画 | log に ramp_rgb / uv_transform、`tests\out\arnold_test.png` を目視 |
+| `tests\run_gui_test.ps1 -Test preview_probe` | AE のプレビュー帯と Maya の管理済みスウォッチを Qt で画面キャプチャしてピクセル比較（環境変数 `OKLCH_SCENE` でシーン指定可、保存はしない） | log の canvas pixel と colorSliderGrp pixel が一致 |
 
 mayapy でできないこと: VP2 描画、`scriptJob` の発火、idle タスク、MtoA。これらは GUI テストで確認する。
 `scriptJob -attributeChange` は mayapy では標準属性でも発火しないので、MEL の挙動検証には使わない。
@@ -57,6 +58,7 @@ mayapy でできないこと: VP2 描画、`scriptJob` の発火、idle タス�
 - **Maya は新規 ramp アトリビュートにエントリ [0] を自動生成する。** postConstructor はそれを黒 @0 に上書きし、白 @1 を追加する（重複エントリを作らない）。ただし `MFileIO::isReadingFile()` 中は何もしない。ファイル読込時に既定値を入れると、保存された ramp がインデックス 0 を使っていない場合に黒のエントリが残るため（`tests/headless/test_reload_entries.py`）。
 - **ノード ID**: Autodesk 登録ブロック `0x00142C40`〜`0x00142C7F`。`0x00142C40` = oklchRamp。新ノードは `0x00142C41` から順に使う。
 - **AE プレビュー帯**: 40 セル × 6px = 240px（AE の横スクロールを出さない幅）。`$gAEoklchRampPreviewSamples` で分解能と幅が連動。
+- **AE プレビュー帯の色**: `canvas` はカラーマネジメント非対応なので、`colorManagementConvert -toDisplaySpace` で自前で表示変換する。`inputColorSpace` に関係なく常に掛ける（Maya は格納値をそのままビュー変換して表示するため）。単純な sRGB カーブは ACES と一致しない。
 
 ## MtoA トランスレータの要点
 
