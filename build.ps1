@@ -42,7 +42,7 @@ if ($Install) {
     $modulePath = Join-Path $root "module"
     $modFile = Join-Path $modDir "oklchRamp.mod"
     @"
-+ MAYAVERSION:2025 PLATFORM:win64 oklchRamp 1.0.0 $modulePath
++ MAYAVERSION:2025 PLATFORM:win64 oklchRamp 1.0.1 $modulePath
 plug-ins: plug-ins
 scripts: scripts
 MTOA_EXTENSIONS_PATH +:= arnold

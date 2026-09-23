@@ -8,7 +8,7 @@
 
 MStatus initializePlugin(MObject obj)
 {
-    MFnPlugin plugin(obj, "oklchRamp", "1.0.0", "Any");
+    MFnPlugin plugin(obj, "oklchRamp", "1.0.1", "Any");
 
     MStatus st = plugin.registerNode(OklchRampNode::typeName,
                                      OklchRampNode::typeId,
